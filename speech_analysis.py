@@ -44,6 +44,83 @@ def _get_whisper():
     return _whisper_pipe
 
 
+# ── Text Emotion Model (DistilRoBERTa) ────────────────────────────────────
+# Classifies emotion from Whisper's transcribed text.
+# Maps 7 DistilRoBERTa emotions to the 6 CREMA-D target classes:
+# anger -> angry, disgust -> disgust, fear -> fear, joy -> happy, neutral -> neutral, sadness -> sad
+_text_emotion_pipe = None
+
+TEXT_EMOTION_MAP = {
+    "anger":   "angry",
+    "disgust": "disgust",
+    "fear":    "fear",
+    "joy":     "happy",
+    "neutral": "neutral",
+    "sadness": "sad",
+}
+
+def _get_text_emotion_pipe():
+    global _text_emotion_pipe
+    if _text_emotion_pipe is None:
+        print("Loading Text Emotion model (DistilRoBERTa)...")
+        _text_emotion_pipe = pipeline(
+            "text-classification",
+            model="j-hartmann/emotion-english-distilroberta-base",
+            top_k=None,
+        )
+        print(" TEXT EMOTION model loaded.")
+    return _text_emotion_pipe
+
+
+def predict_text_emotion(transcript: str) -> dict:
+    """
+    Predict 6-class emotion distribution from transcribed text using DistilRoBERTa.
+    Returns:
+        dominant: str (e.g. 'happy')
+        confidence: float
+        all_probs: dict of {emotion: percentage}
+    """
+    all_emotions = ["angry", "disgust", "fear", "happy", "neutral", "sad"]
+    if not transcript or len(transcript.strip()) < 4:
+        return {
+            "dominant": "neutral",
+            "confidence": 100.0,
+            "all_probs": {e: (100.0 if e == "neutral" else 0.0) for e in all_emotions}
+        }
+
+    try:
+        pipe = _get_text_emotion_pipe()
+        raw_outputs = pipe(transcript[:512])[0]
+
+        scores = {e: 0.0 for e in all_emotions}
+        for item in raw_outputs:
+            mapped = TEXT_EMOTION_MAP.get(item["label"].lower())
+            if mapped in scores:
+                scores[mapped] = float(item["score"])
+
+        total = sum(scores.values())
+        if total > 0:
+            all_probs = {e: round((s / total) * 100, 1) for e, s in scores.items()}
+        else:
+            all_probs = {e: round(100.0 / len(all_emotions), 1) for e in all_emotions}
+
+        dominant = max(all_probs, key=lambda k: all_probs[k])
+        confidence = all_probs[dominant]
+
+        return {
+            "dominant": dominant,
+            "confidence": confidence,
+            "all_probs": all_probs
+        }
+    except Exception as e:
+        print(f"Warning: Text emotion prediction fallback: {e}")
+        return {
+            "dominant": "neutral",
+            "confidence": 100.0,
+            "all_probs": {e: (100.0 if e == "neutral" else 0.0) for e in all_emotions}
+        }
+
+
 def _detect_suffix(audio_bytes: bytes) -> str:
     # audio formats have fixed "magic bytes" at the start, checking those
     # to figure out the file type without relying on a filename/extension

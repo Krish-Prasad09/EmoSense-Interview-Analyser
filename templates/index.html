@@ -357,7 +357,7 @@
 
   <!-- What gets analysed — informational chips -->
   <div class="analysis-chips">
-    <div class="analysis-chip"><div class="dot" style="background:#a855f7"></div>Emotion (Wav2Vec2)</div>
+    <div class="analysis-chip"><div class="dot" style="background:#a855f7"></div>Multimodal Emotion (Audio + Text)</div>
     <div class="analysis-chip"><div class="dot" style="background:#22d3a5"></div>Speech Transcript (Whisper)</div>
     <div class="analysis-chip"><div class="dot" style="background:#fbbf24"></div>Filler Words</div>
     <div class="analysis-chip"><div class="dot" style="background:#3b82f6"></div>Grammar &amp; Formality</div>
@@ -431,6 +431,7 @@
           <span class="confidence" id="res-duration" style="margin-left:12px"></span>
         </div>
       </div>
+      <div id="res-fusion-pill" style="display:none; margin: -12px 0 20px; font-size: 0.8rem; color: var(--accent2); background: rgba(124,106,247,0.1); border: 1px solid rgba(124,106,247,0.25); padding: 8px 14px; border-radius: 10px; line-height: 1.5;"></div>
 
       <div class="score-section">
         <div class="score-label">
@@ -537,7 +538,7 @@
     <button id="try-again" onclick="resetAll()">↩ Analyse another answer</button>
   </div>
 
-  <footer>Built with <span>Wav2Vec2</span> · Whisper STT · Trained on CREMA-D · 6 emotion classes</footer>
+  <footer>Built with <span>Wav2Vec2 + DistilRoBERTa</span> · Whisper STT · Trained on CREMA-D · 6 emotion classes</footer>
 </div>
 
 <script>
@@ -677,6 +678,15 @@
     toneEl.style.color       = col;
 
     document.getElementById('res-conf').textContent = 'Confidence: ' + d.confidence + '%';
+
+    const fusionPill = document.getElementById('res-fusion-pill');
+    if (d.fusion_breakdown) {
+      const fb = d.fusion_breakdown;
+      fusionPill.innerHTML = `⚡ <strong>Multimodal Emotion Average (${fb.weights}):</strong> Voice tone detected <em>${fb.audio_dominant} (${fb.audio_confidence}%)</em> + Transcript detected <em>${fb.text_dominant} (${fb.text_confidence}%)</em>`;
+      fusionPill.style.display = 'block';
+    } else if (fusionPill) {
+      fusionPill.style.display = 'none';
+    }
 
     if (d.duration) {
       const m = Math.floor(d.duration / 60);
@@ -943,6 +953,8 @@
     document.getElementById('res-score-fill').style.width = '0%';
     document.getElementById('prob-grid').innerHTML       = '';
     document.getElementById('timeline-card').style.display = 'none';
+    const fusionPill = document.getElementById('res-fusion-pill');
+    if (fusionPill) fusionPill.style.display = 'none';
   }
 
   function showInputWithError(msg) {

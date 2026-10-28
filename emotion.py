@@ -15,7 +15,7 @@ SAMPLE_RATE    = 16_000
 WINDOW_SECONDS = 4          # model was trained on 4-second windows — never change this
 STEP_SECONDS   = 10         # emit one data-point every 10 s of interview audio
 WINDOW_SAMPLES = SAMPLE_RATE * WINDOW_SECONDS   # 64 000  (model input size)
-STEP_SAMPLES   = SAMPLE_RATE * STEP_SECONDS     # 160 000 (hop between windows)
+STEP_SAMPLES   = SAMPLE_RATE * STEP_SECONDS     # 160 000 (hop between windows) how far to jump forward before taking the next 4-second snapshot, to build an emotion-over-time timeline for a full interview recording
 
 print("Loading emotion model...")
 processor = Wav2Vec2Processor.from_pretrained(MODEL_PATH)
@@ -97,7 +97,8 @@ def _load_audio_bytes(audio_bytes: bytes):
 
     try:
         with open(tmp_in.name, "wb") as f:
-            f.write(audio_bytes)
+            f.write(audio_bytes) 
+            # user uploaded speech.mp3 is stored in memory as audio_bytes and this writes audio_bytes into /tmp/tmpx8123.mp3... FFmpeg has actual MP3 file to read now
 
         result = subprocess.run(
             ["ffmpeg", "-y", "-i", tmp_in.name,
